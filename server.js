@@ -170,28 +170,24 @@ app.get('/api/mpesa/status/:checkoutRequestId', (req, res) => {
 app.post('/api/sms/send', async (req, res) => {
   try {
     const { to, message } = req.body;
-    const params = new URLSearchParams({
-      username: process.env.AT_USERNAME,
-      to: formatPhoneKE(to),
-      message,
-      from: process.env.AT_SENDER || ''
+
+    // Initialize Twilio client
+    const twilio = require('twilio');
+    const client = twilio(
+      process.env.TWILIO_ACCOUNT_SID,
+      process.env.TWILIO_AUTH_TOKEN
+    );
+
+    const result = await client.messages.create({
+      body: message,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: `+${formatPhoneKE(to)}`
     });
 
-    const smsRes = await axios.post(
-      'https://api.africastalking.com/version1/messaging',
-      params.toString(),
-      {
-        headers: {
-          apiKey: process.env.AT_API_KEY,
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-    res.json(smsRes.data);
+    res.json({ status: 'success', sid: result.sid });
   } catch (err) {
-    console.error('SMS error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'SMS send failed', details: err.response?.data || err.message });
+    console.error('SMS error:', err.message);
+    res.status(500).json({ error: 'SMS send failed', details: err.message });
   }
 });
 
